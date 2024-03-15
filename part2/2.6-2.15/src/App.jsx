@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import Filter from "./components/Filter";
 import PersonForm from "./components/PersonForm";
 import Persons from "./components/Persons";
-import axios from "axios";
 import personService from "./services/persons";
+import Notification from "./components/Notification";
+
 const App = () => {
   const [persons, setPersons] = useState([]);
   const [newName, setNewName] = useState("");
   const [newNumber, setNewNumber] = useState("");
   const [filteredPersons, setFilteredPersons] = useState(persons);
+  const [message, setMessage] = useState(null);
 
   useEffect(() => {
     personService.getAll().then((initialPersons) => {
@@ -19,6 +21,16 @@ const App = () => {
   useEffect(() => {
     setFilteredPersons(persons);
   }, [persons]);
+  const showNotification = (name, type) => {
+    if (type === "update") {
+      setMessage(`Number of ${name} updated`);
+    } else {
+      setMessage(`Added ${name}`);
+    }
+    setTimeout(() => {
+      setMessage(null);
+    }, 5000);
+  };
   const addContact = (event) => {
     event.preventDefault();
     const isFound = persons.some((person) => person.name === newName);
@@ -40,15 +52,24 @@ const App = () => {
         setPersons(persons.concat(returnedPerson));
         setNewNumber("");
         setNewName("");
+        showNotification(returnedPerson.name, "create");
       });
     }
   };
+
   const updateContact = (id, changedPerson) => {
-    personService.update(id, changedPerson).then((returnedPerson) => {
-      setPersons(
-        persons.map((p) => (p.id !== returnedPerson.id ? p : returnedPerson))
-      );
-    });
+    personService
+      .update(id, changedPerson)
+      .then((returnedPerson) => {
+        setPersons(
+          persons.map((p) => (p.id !== returnedPerson.id ? p : returnedPerson))
+        );
+      })
+      .catch((error) => {
+        setPersons(persons.filter((p) => p.id !== id));
+        showNotification(changedPerson.name, "error");
+      });
+    showNotification(changedPerson.name, "update");
     setNewName("");
     setNewNumber("");
   };
@@ -74,6 +95,7 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification message={message} />
       <Filter searchContact={searchContact} />
       <h3>Add a new Contact</h3>
       <PersonForm
